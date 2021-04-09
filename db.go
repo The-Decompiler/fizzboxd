@@ -42,21 +42,21 @@ CREATE TRIGGER IF NOT EXISTS CleanGuilds
 AFTER DELETE ON Channels
 WHEN (SELECT COUNT(*) FROM Channels WHERE guild_id = OLD.guild_id) = 0
 BEGIN
-    DELETE FROM Guilds WHERE id = OLD.guild_id;
+	DELETE FROM Guilds WHERE id = OLD.guild_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS CleanChannels
 AFTER DELETE ON Follows
 WHEN (SELECT COUNT(*) FROM Follows WHERE channel_id = OLD.channel_id) = 0
 BEGIN
-    DELETE FROM Channels WHERE id = OLD.channel_id;
+	DELETE FROM Channels WHERE id = OLD.channel_id;
 END;
 
 CREATE TRIGGER IF NOT EXISTS CleanUsernames
 AFTER DELETE ON Follows
 WHEN (SELECT COUNT(*) FROM Follows WHERE username_id = OLD.username_id) = 0
 BEGIN
-    DELETE FROM Usernames WHERE id = OLD.username_id;
+	DELETE FROM Usernames WHERE id = OLD.username_id;
 END;
 `
 
