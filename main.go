@@ -19,8 +19,7 @@ func main() {
 
 	discord, err := discordgo.New("Bot " + discordToken)
 	if err != nil {
-		log.Println("error creating Discord session,", err)
-		return
+		log.Fatalf("failed to create Discord session: %v\n", err)
 	}
 	discord.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsGuildMembers
 	discord.State.MaxMessageCount = 100
@@ -30,7 +29,6 @@ func main() {
 	err = discord.Open()
 	if err != nil {
 		log.Fatalf("failed to open discord connection: %v\n", err)
-		return
 	}
 
 	log.Println("Opening DB")
