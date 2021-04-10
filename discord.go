@@ -9,7 +9,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func CmdFollow(args []string, channel, guild string) (string, error) {
+func CmdFollow(db *DB, args []string, channel, guild string) (string, error) {
 	if len(args) == 0 {
 		return "Usage: `!follow <username>`", nil
 	}
@@ -33,7 +33,7 @@ func CmdFollow(args []string, channel, guild string) (string, error) {
 	return fmt.Sprintf("Now following %s in this channel.", username), nil
 }
 
-func CmdUnfollow(args []string, channel string) (string, error) {
+func CmdUnfollow(db *DB, args []string, channel string) (string, error) {
 	if len(args) == 0 {
 		return "Usage: `!unfollow <username>`", nil
 	}
@@ -57,7 +57,7 @@ func CmdUnfollow(args []string, channel string) (string, error) {
 	return fmt.Sprintf("%s is no longer being followed in this channel.", username), nil
 }
 
-func CmdFollowing(channel string) (string, error) {
+func CmdFollowing(db *DB, channel string) (string, error) {
 	following, err := db.Following(channel)
 	if err != nil {
 		return "", fmt.Errorf("failed to get list of followed users for channel '%s': %v\n", channel, err)
@@ -110,7 +110,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	switch {
 	case cmd == "!follow" && isAdmin:
-		resp, err := CmdFollow(args, m.ChannelID, m.GuildID)
+		resp, err := CmdFollow(db, args, m.ChannelID, m.GuildID)
 
 		if err != nil {
 			log.Printf("failed to execute CmdFollow: %v\n", err)
@@ -121,7 +121,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 
 	case cmd == "!following":
-		resp, err := CmdFollowing(m.ChannelID)
+		resp, err := CmdFollowing(db, m.ChannelID)
 
 		if err != nil {
 			log.Printf("failed to execute CmdFollowing: %v\n", err)
@@ -139,7 +139,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		say(help)
 
 	case cmd == "!unfollow" && isAdmin:
-		resp, err := CmdUnfollow(args, m.ChannelID)
+		resp, err := CmdUnfollow(db, args, m.ChannelID)
 
 		if err != nil {
 			log.Printf("failed to execute CmdUnfollow: %v\n", err)
