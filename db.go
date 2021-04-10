@@ -186,3 +186,20 @@ func (db *DB) Following(channel string) ([]string, error) {
 
 	return following, nil
 }
+
+func (db *DB) FollowExists(username, channel string) (bool, error) {
+	db.lock.RLock()
+	defer db.lock.RUnlock()
+
+	var exists bool
+
+	row := db.db.QueryRow(`SELECT EXISTS (
+		SELECT 1 FROM Follows WHERE
+		username_id = (SELECT id FROM Usernames WHERE username = ?)
+		and
+		channel_id = (SELECT id FROM Channels WHERE channel = ?)
+		LIMIT 1)`, username, channel)
+	err := row.Scan(&exists)
+
+	return exists, err
+}
