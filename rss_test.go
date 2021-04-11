@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 	"time"
+
+	"github.com/microcosm-cc/bluemonday"
 )
 
 type Data struct {
@@ -56,22 +58,23 @@ var testDatas = []*TestData{
 }
 
 func TestHandleData(t *testing.T) {
+	// stripHTMLTags
+	var policy = bluemonday.StripTagsPolicy().AddSpaceWhenStrippingTag(true)
+
 	for i := 0; i < len(testDatas); i++ {
-		poster, review, spoiler, err := HandleData(testDatas[i].Data.Title, testDatas[i].Data.Description, time.Time{})
+		poster, review, spoiler, err := HandleData(testDatas[i].Data.Title, testDatas[i].Data.Description, time.Time{}, policy)
 		if err != nil {
 			t.Errorf("test failed: %v\n", err)
 		}
+
 		if poster != testDatas[i].Expected.Poster {
-			t.Errorf("Poster Received: %v", poster)
-			t.Errorf("Poster Expected: %v", testDatas[i].Expected.Poster)
+			t.Errorf("\nPoster Received: %v\nPoster Expected: %v", poster, testDatas[i].Expected.Poster)
 		}
 		if review != testDatas[i].Expected.Review {
-			t.Errorf("Review Received: %v", review)
-			t.Errorf("Review Expected: %v", testDatas[i].Expected.Review)
+			t.Errorf("\nReview Received: %v\nReview Expected: %v", review, testDatas[i].Expected.Review)
 		}
 		if spoiler != testDatas[i].Expected.Spoiler {
-			t.Errorf("Review Received: %v", spoiler)
-			t.Errorf("Review Expected: %v", testDatas[i].Expected.Spoiler)
+			t.Errorf("\nSpoiler Received: %v\nSpoiler Expected: %v", spoiler, testDatas[i].Expected.Spoiler)
 		}
 	}
 }

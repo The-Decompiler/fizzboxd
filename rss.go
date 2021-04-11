@@ -32,10 +32,10 @@ type FeedEntry struct {
 	Spoiler     bool
 }
 
-var iconUrl = "https://cdn.discordapp.com/attachments/530814994204590097/794205173358395422/image0.png"
-
 // Fetches a user's RSS feed, returning an array of 50 FeedEntrys with parsed values
-func GetFeed(username string) (userFeed Feed, error error) {
+func GetFeed(username string, policy *bluemonday.Policy) (Feed, error) {
+	var iconUrl = "https://cdn.discordapp.com/attachments/530814994204590097/794205173358395422/image0.png"
+
 	fp := gofeed.NewParser()
 	feed, err := fp.ParseURL("https://letterboxd.com/" + username + "/rss/")
 
@@ -48,7 +48,7 @@ func GetFeed(username string) (userFeed Feed, error error) {
 		if strings.HasPrefix(item.GUID, "letterboxd-list-") {
 			continue
 		}
-		entry, err := parseEntry(item)
+		entry, err := parseEntry(item, policy)
 		if err != nil {
 			continue
 		}
@@ -63,9 +63,9 @@ func GetFeed(username string) (userFeed Feed, error error) {
 	}, nil
 }
 
-func parseEntry(entry *gofeed.Item) (*FeedEntry, error) {
+func parseEntry(entry *gofeed.Item, policy *bluemonday.Policy) (*FeedEntry, error) {
 	watchedDate := handleWatchedDate(entry.Extensions["letterboxd"]["watchedDate"])
-	poster, review, spoiler, err := HandleData(entry.Title, entry.Description, watchedDate)
+	poster, review, spoiler, err := HandleData(entry.Title, entry.Description, watchedDate, policy)
 
 	if err != nil {
 		return &FeedEntry{}, err
@@ -149,7 +149,7 @@ func handleRewatch(rewatch []ext.Extension) bool {
 	return false
 }
 
-func HandleData(title, description string, watchedDate time.Time) (poster, review string, spoiler bool, err error) {
+func HandleData(title, description string, watchedDate time.Time, policy *bluemonday.Policy) (poster, review string, spoiler bool, err error) {
 	watchedDateString := watchedDate.Format("Monday January 2, 2006")
 
 	// Poster
@@ -159,6 +159,7 @@ func HandleData(title, description string, watchedDate time.Time) (poster, revie
 	}
 
 	if img := rePoster.FindStringSubmatch(description); len(img) > 0 {
+		// Ensures that all images will only come from this link
 		poster = "https://a.ltrbxd.com/resized/" + img[1]
 		description = rePoster.ReplaceAllString(description, " ") // Remove, preventing injection
 	} else {
@@ -175,8 +176,7 @@ func HandleData(title, description string, watchedDate time.Time) (poster, revie
 		review = ""
 		spoiler = false
 	} else {
-		stripHTMLTags := bluemonday.StripTagsPolicy().AddSpaceWhenStrippingTag(true)
-		review = stripHTMLTags.Sanitize(description)
+		review = policy.Sanitize(description)
 	}
 	review = strings.TrimSpace(review)
 
