@@ -56,10 +56,12 @@ func PostFeeds(db *DB, discord *discordgo.Session, p *bluemonday.Policy) error {
 			}
 			embed := filteredFeed.GenerateEmbded()
 
-			_, err := discord.ChannelMessageSendEmbed(f.Channel, embed)
-			if err != nil {
-				log.Printf("failed to send embed message '%v': %v\n", *embed, err)
-				continue
+			// To avoid spamming when first following someone
+			if len(f.History) != 0 {
+				if _, err := discord.ChannelMessageSendEmbed(f.Channel, embed); err != nil {
+					log.Printf("failed to send embed message '%v': %v\n", *embed, err)
+					continue
+				}
 			}
 
 			if err := db.UpdateHistory(username, f.Channel, feed.GetHistory()); err != nil {
