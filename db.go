@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -64,6 +65,13 @@ type DB struct {
 	lock sync.RWMutex
 	db   *sql.DB
 }
+
+type Follow struct {
+	Channel string
+	History []string
+}
+
+type Users map[string][]Follow
 
 func OpenSQLDB(driver, source string) (*DB, error) {
 	sqlDB, err := sql.Open(driver, source)
@@ -202,4 +210,53 @@ func (db *DB) FollowExists(username, channel string) (bool, error) {
 	err := row.Scan(&exists)
 
 	return exists, err
+}
+
+func (db *DB) GetFollows() (Users, error) {
+	db.lock.RLock()
+	defer db.lock.RUnlock()
+
+	follows := Users{}
+
+	rows, err := db.db.Query(`SELECT u.username, c.channel, f.history
+		FROM Follows f INNER JOIN Usernames u INNER JOIN Channels c
+		ON f.username_id = u.id and f.channel_id = c.id`)
+	if err != nil {
+		return follows, fmt.Errorf("failed to get list of follows: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var username string
+		var channel string
+		var history string
+		if err := rows.Scan(&username, &channel, &history); err != nil {
+			return nil, err
+		}
+
+		follow := Follow{channel, strings.Split(history, ",")}
+		follows[username] = append(follows[username], follow)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return follows, nil
+}
+
+func (db *DB) UpdateHistory(username, channel string, history []string) error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
+	_, err := db.db.Exec(`UPDATE Follows SET history = ? WHERE
+		username_id = (SELECT id FROM Usernames WHERE username = ?)
+		and
+		channel_id = (SELECT id FROM Channels WHERE channel = ?)`,
+		strings.Join(history, ","),
+		username,
+		channel,
+	)
+
+	return err
 }

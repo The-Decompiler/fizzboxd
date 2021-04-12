@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mmcdole/gofeed"
 	ext "github.com/mmcdole/gofeed/extensions"
@@ -30,6 +32,149 @@ type FeedEntry struct {
 	Poster      string
 	Review      string
 	Spoiler     bool
+}
+
+func PostFeeds(db *DB, discord *discordgo.Session, p *bluemonday.Policy) error {
+	users, err := db.GetFollows()
+	if err != nil {
+		return err
+	}
+
+	for username, follows := range users {
+		feed, err := GetFeed(username, p)
+		if err != nil {
+			log.Printf("failed to get feed for username '%s': %v\n", username, err)
+			continue
+		}
+
+		// Done this way so that not multiple requests are made to LB for
+		// someone that is being followed in multiple channels.
+		for _, f := range follows {
+			filteredFeed := feed.FilterEntries(f.History, 4)
+			if len(filteredFeed.Entries) == 0 {
+				continue
+			}
+			embed := filteredFeed.GenerateEmbded()
+
+			// To avoid spamming when first following someone
+			if len(f.History) != 0 {
+				if _, err := discord.ChannelMessageSendEmbed(f.Channel, embed); err != nil {
+					log.Printf("failed to send embed message '%v': %v\n", *embed, err)
+					continue
+				}
+			}
+
+			if err := db.UpdateHistory(username, f.Channel, feed.GetHistory()); err != nil {
+				log.Printf("failed to update history: %v\n", err)
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
+func (f *Feed) GetHistory() []string {
+	history := []string{}
+	for _, e := range f.Entries {
+		history = append(history, e.ID)
+	}
+	return history
+}
+
+// Keep n amount of entries excluding those in the history.
+func (f Feed) FilterEntries(history []string, numOfEntries int) Feed {
+	entries := []*FeedEntry{}
+	count := 0
+	for _, e := range f.Entries {
+		if count >= numOfEntries {
+			break
+		}
+		if stringInSlice(history, e.ID) {
+			continue
+		}
+		entries = append(entries, e)
+		count++
+	}
+
+	f.Entries = entries
+	return f
+}
+
+func (f *Feed) GenerateEmbded() *discordgo.MessageEmbed {
+	description := ""
+	for _, e := range f.Entries {
+		var url string
+		if e.URL == "" {
+			url = "https://letterboxd.com/"
+		} else {
+			url = e.URL
+		}
+
+		var watchedDate string
+		if e.WatchedDate.IsZero() {
+			watchedDate = ""
+		} else {
+			watchedDate = e.WatchedDate.Format("2006-01-02")
+		}
+
+		var rating string
+		if e.Rating == -1 {
+			rating = ""
+		} else {
+			rating = strings.Repeat("★", e.Rating/10)
+			if e.Rating%10 == 5 {
+				rating += "½"
+			}
+		}
+
+		var rewatch string
+		if e.Rewatch {
+			rewatch = "↺"
+		} else {
+			rewatch = ""
+		}
+
+		var review string
+		if e.Spoiler {
+			review = "This review may contain spoilers."
+		} else if len(review) > 300 {
+			review = e.Review[:300] + "..."
+		} else {
+			review = e.Review
+		}
+
+		if review != "" {
+			review = fmt.Sprintf("```%s```", review)
+		}
+
+		description += fmt.Sprintf("**[%s (%s)](%s)**\n", e.Title, e.Year, url)
+		description += fmt.Sprintf("**%s** %s %s\n", watchedDate, rating, rewatch)
+		description += fmt.Sprintf("%s\n", review)
+	}
+
+	var poster string
+	for _, e := range f.Entries {
+		if e.Poster != "" {
+			poster = e.Poster
+			break
+		}
+	}
+
+	embed := &discordgo.MessageEmbed{
+		Author: &discordgo.MessageEmbedAuthor{
+			URL:     fmt.Sprintf("https://letterboxd.com/%s/films/diary/", f.Username),
+			Name:    f.DisplayName,
+			IconURL: f.IconURL,
+		},
+		Color:       0xd8b437,
+		Description: description,
+		Thumbnail: &discordgo.MessageEmbedThumbnail{
+			URL: poster,
+		},
+	}
+
+	return embed
 }
 
 // Fetches a user's RSS feed, returning an array of 50 FeedEntrys with parsed values
