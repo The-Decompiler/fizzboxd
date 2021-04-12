@@ -5,8 +5,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 var db *DB
@@ -36,6 +38,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open database: %v\n", err)
 	}
+
+	p := bluemonday.StripTagsPolicy().AddSpaceWhenStrippingTag(true)
+
+	go func(db *DB, discord *discordgo.Session, p *bluemonday.Policy) {
+		for {
+			if err := PostFeeds(db, discord, p); err != nil {
+				log.Printf("failed to post feeds: %v\n", err)
+			}
+			time.Sleep(30 * time.Minute)
+		}
+	}(db, discord, p)
 
 	log.Println("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
