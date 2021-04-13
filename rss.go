@@ -138,7 +138,7 @@ func (f *Feed) GenerateEmbded() *discordgo.MessageEmbed {
 		var review string
 		if e.Spoiler {
 			review = "This review may contain spoilers."
-		} else if len(review) > 300 {
+		} else if len(e.Review) > 300 {
 			review = e.Review[:300] + "..."
 		} else {
 			review = e.Review
