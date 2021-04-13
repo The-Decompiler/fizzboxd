@@ -234,7 +234,16 @@ func (db *DB) GetFollows() (Users, error) {
 			return nil, err
 		}
 
-		follow := Follow{channel, strings.Split(history, ",")}
+		// if history is an empty string then Split returns []string{""},
+		// instead of an empty slice
+		var hist []string
+		if history == "" {
+			hist = []string{}
+		} else {
+			hist = strings.Split(history, ",")
+		}
+
+		follow := Follow{channel, hist}
 		follows[username] = append(follows[username], follow)
 	}
 
