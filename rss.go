@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"regexp"
 	"strconv"
@@ -145,7 +146,7 @@ func (f *Feed) GenerateEmbded() *discordgo.MessageEmbed {
 		}
 
 		if review != "" {
-			review = fmt.Sprintf("```%s```", review)
+			review = fmt.Sprintf("```%s```", html.UnescapeString(review))
 		}
 
 		description += fmt.Sprintf("**[%s (%s)](%s)**\n", e.Title, e.Year, url)
