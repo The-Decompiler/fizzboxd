@@ -165,7 +165,7 @@ func (f *Feed) GenerateEmbded() *discordgo.MessageEmbed {
 	embed := &discordgo.MessageEmbed{
 		Author: &discordgo.MessageEmbedAuthor{
 			URL:     fmt.Sprintf("https://letterboxd.com/%s/films/diary/", f.Username),
-			Name:    f.DisplayName,
+			Name:    fmt.Sprintf("Recent diary activity from %s", f.DisplayName ),
 			IconURL: f.IconURL,
 		},
 		Color:       0xd8b437,
