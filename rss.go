@@ -116,7 +116,7 @@ func (f *Feed) GenerateEmbded() *discordgo.MessageEmbed {
 		if e.WatchedDate.IsZero() {
 			watchedDate = ""
 		} else {
-			watchedDate = e.WatchedDate.Format("2006-01-02")
+			watchedDate = fmt.Sprintf("**%s**", e.WatchedDate.Format("2006-01-02"))
 		}
 
 		var rating string
@@ -150,7 +150,7 @@ func (f *Feed) GenerateEmbded() *discordgo.MessageEmbed {
 		}
 
 		description += fmt.Sprintf("**[%s (%s)](%s)**\n", e.Title, e.Year, url)
-		description += fmt.Sprintf("**%s** %s %s\n", watchedDate, rating, rewatch)
+		description += fmt.Sprintf("%s %s %s\n", watchedDate, rating, rewatch)
 		description += fmt.Sprintf("%s\n", review)
 	}
 
@@ -165,7 +165,7 @@ func (f *Feed) GenerateEmbded() *discordgo.MessageEmbed {
 	embed := &discordgo.MessageEmbed{
 		Author: &discordgo.MessageEmbedAuthor{
 			URL:     fmt.Sprintf("https://letterboxd.com/%s/films/diary/", f.Username),
-			Name:    f.DisplayName,
+			Name:    fmt.Sprintf("Recent diary activity from %s", f.DisplayName),
 			IconURL: f.IconURL,
 		},
 		Color:       0xd8b437,
