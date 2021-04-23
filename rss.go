@@ -92,7 +92,7 @@ func (f Feed) FilterEntries(history []string, numOfEntries int) Feed {
 			break
 		}
 		if stringInSlice(history, e.ID) {
-			continue
+			break
 		}
 		entries = append(entries, e)
 		count++
