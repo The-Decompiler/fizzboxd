@@ -234,7 +234,7 @@ func parseEntry(entry *gofeed.Item, policy *bluemonday.Policy) (*FeedEntry, erro
 // fullTitle expected to return `Letterboxd - DisplayName`
 func handleDisplayName(fullTitle string) string {
 	// feed.Items[0].Author.Name not used in case of empty feed
-	displayName := strings.Replace(fullTitle, "Letterboxd - ", " ", 1)
+	displayName := strings.Replace(fullTitle, "Letterboxd - ", "", 1)
 	return displayName
 }
 
