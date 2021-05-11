@@ -35,22 +35,41 @@ type FeedEntry struct {
 	Spoiler     bool
 }
 
-func PostFeeds(db *DB, discord *discordgo.Session, p *bluemonday.Policy) error {
+type user struct {
+	username string
+	follows  []Follow
+}
+
+func PostFeeds(db *DB, d *discordgo.Session, p *bluemonday.Policy) error {
 	users, err := db.GetFollows()
 	if err != nil {
 		return err
 	}
 
+	in := make(chan user)
+	for x := 0; x < 5; x++ {
+		go PostUser(in, db, d, p)
+	}
+
 	for username, follows := range users {
-		feed, err := GetFeed(username, p)
+		in <- user{username, follows}
+	}
+	close(in)
+
+	return nil
+}
+
+func PostUser(in chan user, db *DB, d *discordgo.Session, p *bluemonday.Policy) {
+	for u := range in {
+		feed, err := GetFeed(u.username, p)
 		if err != nil {
-			log.Printf("failed to get feed for username '%s': %v\n", username, err)
-			continue
+			log.Printf("failed to get feed for username '%s': %v\n", u.username, err)
+			return
 		}
 
 		// Done this way so that not multiple requests are made to LB for
 		// someone that is being followed in multiple channels.
-		for _, f := range follows {
+		for _, f := range u.follows {
 			filteredFeed := feed.FilterEntries(f.History, 4)
 			if len(filteredFeed.Entries) == 0 {
 				continue
@@ -59,20 +78,18 @@ func PostFeeds(db *DB, discord *discordgo.Session, p *bluemonday.Policy) error {
 
 			// To avoid spamming when first following someone
 			if len(f.History) != 0 {
-				if _, err := discord.ChannelMessageSendEmbed(f.Channel, embed); err != nil {
+				if _, err := d.ChannelMessageSendEmbed(f.Channel, embed); err != nil {
 					log.Printf("failed to send embed message '%v': %v\n", *embed, err)
 					continue
 				}
 			}
 
-			if err := db.UpdateHistory(username, f.Channel, feed.GetHistory()); err != nil {
+			if err := db.UpdateHistory(u.username, f.Channel, feed.GetHistory()); err != nil {
 				log.Printf("failed to update history: %v\n", err)
 				continue
 			}
 		}
 	}
-
-	return nil
 }
 
 func (f *Feed) GetHistory() []string {
